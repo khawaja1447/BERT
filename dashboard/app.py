@@ -356,42 +356,55 @@ with tab2:
         else:
             st.error("Could not decode CSV. Save it as UTF-8 and re-upload.")
             st.stop()
-        if "text" not in df.columns:
-            st.error("CSV must have a `text` column.")
+        # auto-detect the text column or let the user pick
+        if "text" in df.columns:
+            text_col = "text"
         else:
-            st.dataframe(df.head(5), use_container_width=True)
-            if st.button("🚀 Run Batch Inference", type="primary"):
-                texts = df["text"].dropna().astype(str).tolist()[:500]
-                progress = st.progress(0)
-                all_results = []
-                chunk_size = 32
-                for i in range(0, len(texts), chunk_size):
-                    chunk = texts[i : i + chunk_size]
-                    resp = call_batch(chunk)  # uses _session internally
-                    if resp:
-                        all_results.extend(resp["results"])
-                    progress.progress(min(1.0, (i + chunk_size) / len(texts)))
+            str_cols = [c for c in df.columns if df[c].dtype == object]
+            if not str_cols:
+                st.error("No text columns found in this CSV.")
+                st.stop()
+            # guess: pick the string column with the longest average length
+            best = max(str_cols, key=lambda c: df[c].dropna().astype(str).str.len().mean())
+            text_col = st.selectbox(
+                f"No `text` column found. Which column contains the reviews/text?",
+                options=str_cols,
+                index=str_cols.index(best),
+            )
 
-                results_df = pd.DataFrame([
-                    {"text": r["text"], "label": r["label"], "confidence": r["confidence"]}
-                    for r in all_results
-                ])
-                st.success(f"Processed {len(results_df)} texts.")
+        st.dataframe(df.head(5), use_container_width=True)
+        if st.button("🚀 Run Batch Inference", type="primary"):
+            texts = df[text_col].dropna().astype(str).tolist()[:500]
+            progress = st.progress(0)
+            all_results = []
+            chunk_size = 32
+            for i in range(0, len(texts), chunk_size):
+                chunk = texts[i : i + chunk_size]
+                resp = call_batch(chunk)
+                if resp:
+                    all_results.extend(resp["results"])
+                progress.progress(min(1.0, (i + chunk_size) / len(texts)))
 
-                fig = px.pie(
-                    results_df, names="label",
-                    color_discrete_map={"positive": "#22c55e", "negative": "#ef4444"},
-                    title="Sentiment Distribution",
-                )
-                fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="#eeeeff")
-                st.plotly_chart(fig, use_container_width=True)
+            results_df = pd.DataFrame([
+                {"text": r["text"], "label": r["label"], "confidence": r["confidence"]}
+                for r in all_results
+            ])
+            st.success(f"Processed {len(results_df)} texts.")
 
-                st.dataframe(results_df, use_container_width=True)
-                st.download_button(
-                    "⬇️ Download Results",
-                    results_df.to_csv(index=False),
-                    "sentiment_results.csv",
-                    "text/csv",
+            fig = px.pie(
+                results_df, names="label",
+                color_discrete_map={"positive": "#22c55e", "negative": "#ef4444"},
+                title="Sentiment Distribution",
+            )
+            fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="#eeeeff")
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.dataframe(results_df, use_container_width=True)
+            st.download_button(
+                "⬇️ Download Results",
+                results_df.to_csv(index=False),
+                "sentiment_results.csv",
+                "text/csv",
                 )
 
 # ─── Tab 3: Metrics ───────────────────────────────────────────────────────────
