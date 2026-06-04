@@ -349,7 +349,7 @@ with tab2:
         for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
             try:
                 uploaded.seek(0)
-                df = pd.read_csv(uploaded, encoding=enc)
+                df = pd.read_csv(uploaded, encoding=enc, dtype=str)
                 break
             except (UnicodeDecodeError, Exception):
                 continue
