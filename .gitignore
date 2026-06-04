@@ -26,6 +26,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Claude Code internal settings (machine-specific paths)
+.claude/
+
 # Logs
 *.log
 logs/
