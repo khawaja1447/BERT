@@ -342,37 +342,43 @@ with tab1:
 
 with tab2:
     st.markdown("#### Upload CSV for Batch Inference")
-    st.caption("CSV must contain a `text` column. Max 500 rows per upload.")
+    st.caption("Upload any CSV with a column containing text. Max 500 rows per upload.")
     uploaded = st.file_uploader("Choose CSV", type=["csv"])
 
     if uploaded:
-        for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
+        # try encodings in order; read everything as str so no dtype issues
+        raw_df = None
+        for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"):
             try:
                 uploaded.seek(0)
-                df = pd.read_csv(uploaded, encoding=enc, dtype=str)
-                break
-            except (UnicodeDecodeError, Exception):
+                raw_df = pd.read_csv(uploaded, encoding=enc, dtype=str)
+                if len(raw_df.columns) > 0:
+                    break
+            except Exception:
                 continue
-        else:
-            st.error("Could not decode CSV. Save it as UTF-8 and re-upload.")
-            st.stop()
-        # auto-detect the text column or let the user pick
-        if "text" in df.columns:
-            text_col = "text"
-        else:
-            str_cols = [c for c in df.columns if df[c].dtype == object]
-            if not str_cols:
-                st.error("No text columns found in this CSV.")
-                st.stop()
-            # guess: pick the string column with the longest average length
-            best = max(str_cols, key=lambda c: df[c].dropna().astype(str).str.len().mean())
-            text_col = st.selectbox(
-                f"No `text` column found. Which column contains the reviews/text?",
-                options=str_cols,
-                index=str_cols.index(best),
-            )
 
-        st.dataframe(df.head(5), use_container_width=True)
+        if raw_df is None or len(raw_df.columns) == 0:
+            st.error("Could not parse this CSV. Try saving it as UTF-8 from Excel.")
+            st.stop()
+
+        df = raw_df
+        all_cols = df.columns.tolist()
+
+        # pick best default: exact match "text", else longest avg string column
+        if "text" in all_cols:
+            default_idx = all_cols.index("text")
+        else:
+            avg_lens = {c: df[c].fillna("").astype(str).str.len().mean() for c in all_cols}
+            best_col = max(avg_lens, key=avg_lens.get)
+            default_idx = all_cols.index(best_col)
+
+        text_col = st.selectbox(
+            "Select the column that contains the text to analyse:",
+            options=all_cols,
+            index=default_idx,
+        )
+
+        st.dataframe(df[[text_col]].head(5), use_container_width=True)
         if st.button("🚀 Run Batch Inference", type="primary"):
             texts = df[text_col].dropna().astype(str).tolist()[:500]
             progress = st.progress(0)
