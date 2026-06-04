@@ -256,7 +256,12 @@ tab1, tab2, tab3 = st.tabs(["🔍 Live Analysis", "📂 Batch Upload", "📊 Met
 # ─── Tab 1: Live Analysis ─────────────────────────────────────────────────────
 
 with tab1:
-    # seed text_area from session_state so example buttons can pre-fill it
+    # If an example was clicked on the previous run, inject it before the
+    # text_area widget is instantiated (Streamlit forbids writing a widget's
+    # key after the widget already exists in the same run).
+    if st.session_state.get("_example_to_load"):
+        st.session_state["input_text"] = st.session_state.pop("_example_to_load")
+
     if "input_text" not in st.session_state:
         st.session_state["input_text"] = ""
 
@@ -284,7 +289,7 @@ with tab1:
         for ex in examples:
             label = f"_{ex[:55]}..._" if len(ex) > 55 else f"_{ex}_"
             if st.button(label, use_container_width=True, key=f"ex_{ex[:20]}"):
-                st.session_state["input_text"] = ex
+                st.session_state["_example_to_load"] = ex
                 st.rerun()
 
     with col_result:
