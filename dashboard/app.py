@@ -346,7 +346,16 @@ with tab2:
     uploaded = st.file_uploader("Choose CSV", type=["csv"])
 
     if uploaded:
-        df = pd.read_csv(uploaded)
+        for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
+            try:
+                uploaded.seek(0)
+                df = pd.read_csv(uploaded, encoding=enc)
+                break
+            except (UnicodeDecodeError, Exception):
+                continue
+        else:
+            st.error("Could not decode CSV. Save it as UTF-8 and re-upload.")
+            st.stop()
         if "text" not in df.columns:
             st.error("CSV must have a `text` column.")
         else:
