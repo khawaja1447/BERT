@@ -69,7 +69,9 @@ class BertSentimentClassifier(nn.Module):
         nn.Module.__init__(obj)
         obj.num_labels = num_labels
         obj.bert = BertForSequenceClassification.from_pretrained(
-            path, num_labels=num_labels, output_attentions=False
+            path, num_labels=num_labels,
+            output_attentions=False,
+            attn_implementation="eager",  # SDPA silently drops attentions; eager returns them
         )
         logger.info(f"Model loaded from {path}")
         return obj

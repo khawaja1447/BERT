@@ -98,7 +98,9 @@ class SentimentPipeline:
         mask = encodings["attention_mask"].to(self.device)
         types = encodings.get("token_type_ids", torch.zeros_like(ids)).to(self.device)
 
-        preds, probs, attentions = self.model.predict(ids, mask, types)
+        preds, probs, attentions = self.model.predict(
+            ids, mask, types, return_attention=return_attention
+        )
 
         results = []
         for i, text in enumerate(texts):
@@ -111,7 +113,7 @@ class SentimentPipeline:
                 "confidence": round(prob_arr[label_id], 4),
                 "probabilities": {self.LABELS[j]: round(p, 4) for j, p in enumerate(prob_arr)},
             }
-            if return_attention:
+            if return_attention and attentions is not None:
                 last_layer_attn = attentions[-1][i].mean(dim=0).cpu().tolist()
                 tokens = self.tokenizer.convert_ids_to_tokens(ids[i].cpu().tolist())
                 result["tokens"] = [t for t in tokens if t != "[PAD]"]
