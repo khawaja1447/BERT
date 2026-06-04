@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      target: runtime
+    image: bert-sentiment:latest
+    container_name: bert-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+    environment:
+      - MODEL_PATH=checkpoints/best_model
+      - USE_ONNX=${USE_ONNX:-false}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  dashboard:
+    build:
+      context: .
+      target: runtime
+    image: bert-sentiment:latest
+    container_name: bert-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["streamlit", "run", "dashboard/app.py",
+              "--server.port=8501",
+              "--server.address=0.0.0.0",
+              "--server.headless=true"]
+
+networks:
+  default:
+    name: bert-network
