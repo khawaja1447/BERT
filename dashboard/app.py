@@ -256,6 +256,10 @@ tab1, tab2, tab3 = st.tabs(["🔍 Live Analysis", "📂 Batch Upload", "📊 Met
 # ─── Tab 1: Live Analysis ─────────────────────────────────────────────────────
 
 with tab1:
+    # seed text_area from session_state so example buttons can pre-fill it
+    if "input_text" not in st.session_state:
+        st.session_state["input_text"] = ""
+
     col_input, col_result = st.columns([1.2, 1])
 
     with col_input:
@@ -265,6 +269,7 @@ with tab1:
             height=140,
             placeholder="Type or paste any text here...",
             label_visibility="collapsed",
+            key="input_text",
         )
         show_attention = st.checkbox("Show attention heatmap", value=True)
         run_btn = st.button("⚡ Analyze Sentiment", use_container_width=True, type="primary")
@@ -277,8 +282,10 @@ with tab1:
             "Breakthrough performance by the entire cast, emotionally devastating.",
         ]
         for ex in examples:
-            if st.button(f"_{ex[:55]}..._" if len(ex) > 55 else f"_{ex}_", use_container_width=True):
-                text_input = ex
+            label = f"_{ex[:55]}..._" if len(ex) > 55 else f"_{ex}_"
+            if st.button(label, use_container_width=True, key=f"ex_{ex[:20]}"):
+                st.session_state["input_text"] = ex
+                st.rerun()
 
     with col_result:
         st.markdown("#### Result")
